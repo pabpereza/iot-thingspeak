@@ -6,11 +6,12 @@ class ThingSpeakClient:
         self.channel_id = channel_id
         self.base_url = "https://api.thingspeak.com"
 
-    def send_data(self, field: str, value: float):
+    def send_data(self, field1: str, field2: str, value1: float, value2: float):
         url = f"{self.base_url}/update"
         params = {
             "api_key": self.api_key,
-            field: value
+            field1: value1,
+            field2: value2
         }
         response = requests.get(url, params=params)
         if response.status_code == 200:
