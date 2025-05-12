@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from controllers.thingspeak_client import ThingSpeakClient
 from controllers.tiempo_net import WeatherClient
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
 from datetime import datetime
@@ -57,7 +57,7 @@ def update_data():
 def schedule_update_data():
     while True:
         update_data()
-        time.sleep(60)
+        time.sleep(3600)
 
 # Lanzar un subproceso para ejecutar la función periódicamente
 def start_update_data_subprocess():
@@ -72,4 +72,37 @@ start_update_data_subprocess()
 @app.get("/", response_class=HTMLResponse)
 def get_home(request: Request):
     feeds = thingspeak_client.read_data()
+    # Ordenar los feeds por fecha
+    feeds["feeds"].sort(key=lambda x: datetime.strptime(x["created_at"], "%Y-%m-%dT%H:%M:%SZ"), reverse=True)
     return templates.TemplateResponse("home.html",  {"request": request, "feeds": feeds["feeds"]})
+
+@app.get("/update")
+def update_endpoint():
+    update_data()
+    return RedirectResponse(url="/")
+
+@app.post("/add-data")
+def add_data_endpoint(data: dict):
+    temperature = data.get("temperature")
+    humidity = data.get("humidity")
+
+    if temperature is not None and humidity is not None:
+        # Registrar los datos manualmente en ThingSpeak
+        thingspeak_client.send_data(field1="field1", field2="field2", value1=temperature, value2=humidity)
+        return {"message": "Datos cargados correctamente"}
+    else:
+        return {"error": "Faltan datos"}, 400
+
+@app.get("/forecast")
+def get_forecast():
+    # Simulación de datos de previsión para los próximos 7 días
+    forecast_data = [
+        {"date": "2025-05-13", "description": "Soleado", "temp": 25},
+        {"date": "2025-05-14", "description": "Parcialmente nublado", "temp": 22},
+        {"date": "2025-05-15", "description": "Lluvias ligeras", "temp": 20},
+        {"date": "2025-05-16", "description": "Nublado", "temp": 18},
+        {"date": "2025-05-17", "description": "Soleado", "temp": 24},
+        {"date": "2025-05-18", "description": "Tormentas", "temp": 19},
+        {"date": "2025-05-19", "description": "Soleado", "temp": 26},
+    ]
+    return forecast_data
